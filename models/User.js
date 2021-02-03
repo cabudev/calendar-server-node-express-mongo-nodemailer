@@ -13,6 +13,12 @@ const UserSchema = Schema({
     password: {
         type: String,
         required: true
+    },
+    token: {
+        type: String
+    },
+    profile_picture: {
+        type: String
     }
 });
 

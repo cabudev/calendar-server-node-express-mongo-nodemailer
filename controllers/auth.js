@@ -1,50 +1,6 @@
-const { response } = require('express');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { createJWT } = require('../helpers/jwt');
-
-const createUser = async (req, res = response) => {
-    
-    const {email, password} = req.body;
-
-    try {
-        //comprueba que el usuario no existe en db
-        let user = await User.findOne({ email });
-
-        if( user ) {
-            return res.status(400).json({
-                ok: false,
-                msg: 'Ya hay un usuario asociado a este email'
-            });
-        }
-
-        user = new User( req.body );
-
-        //encripta contraseña
-        const salt = bcrypt.genSaltSync();
-        user.password = bcrypt.hashSync( password, salt );
-
-        await user.save();
-
-        //genera JWT
-        const token = await createJWT( user.id, user.name );
-
-        //si puede crearlo: 201 (estado para cuando se crea en bd)
-        res.status(201).json({
-            ok: true,
-            uid: user.id,
-            name: user.name,
-            token
-        });
-
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({
-            ok: false,
-            msg: 'Error: contacta con el administrador'
-        });
-    }
-}
 
 const loginUser =  async(req, res) => {
     
@@ -77,6 +33,7 @@ const loginUser =  async(req, res) => {
             ok: true,
             uid: user.id,
             name: user.name,
+            urlProfilePicture: user.profile_picture,
             token
         });
 
@@ -106,7 +63,6 @@ const renewToken = async(req, res) => {
 }
 
 module.exports = {
-    createUser,
     loginUser,
     renewToken
 }

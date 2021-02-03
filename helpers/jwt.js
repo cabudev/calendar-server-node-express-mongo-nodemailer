@@ -17,7 +17,6 @@ const createJWT = ( uid, name ) => {
         }
         )
     })
-
 }
 
 
