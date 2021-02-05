@@ -1,45 +1,86 @@
 const { response } = require('express');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+
 const User = require('../models/User');
+const Company = require('../models/Company');
+
 const { createJWT } = require('../helpers/jwt');
 const sendEmail = require('../handlers/email');
 
 
 const createUser = async (req, res = response) => {
     
-    const {email, password } = req.body;
+    const {company: tradename, name, email, password } = req.body;
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
     try {
+           
         //comprueba que el usuario no existe en db
         let user = await User.findOne({ email });
 
         if( user ) {
+            session.endSession();
             return res.status(400).json({
                 ok: false,
                 msg: 'Ya hay un usuario asociado a este email'
             });
         }
 
-        user = new User( req.body );
+        //user = new User( req.body, {} );
 
         //encripta contraseña
         const salt = bcrypt.genSaltSync();
-        user.password = bcrypt.hashSync( password, salt );
+        passwordCrypt = bcrypt.hashSync( password, salt );
 
-        await user.save();
+        //await user.save();
+        user = await User.create([{ email, password: passwordCrypt, name  }], { session });
+        
+        //comprueba si la empresa existe
+        let company = await Company.findOne({ tradename });
+        if( tradename ){
+
+            if( company ) {
+                await session.abortTransaction();
+                session.endSession();
+                return res.status(400).json({
+                    ok: false,
+                    msg: 'La empresa ya esta dada de alta. Contacte con el administrador para que le envie una invitación'
+                });
+            }
+
+            admin_id = user[0].id;
+            user_id = user[0].id;
+            //crea la empresa
+            //company = await Company( { tradename, admin_id, user_id } );
+
+            company = await Company.create([{ tradename, admin_id, user_id }], { session });
+            //await company.save(); 
+
+        }
 
         //genera JWT
         const token = await createJWT( user.id, user.name );
 
+        //hace el commit de la stansaccion y cierra la sesion
+        await session.commitTransaction();
+        session.endSession();
+
         //si puede crearlo: 201 (estado para cuando se crea en bd)
-        res.status(201).json({
+        return res.status(201).json({
             ok: true,
-            uid: user.id,
-            name: user.name,
+            uid: user[0].id,
+            name: user[0].name,
+            company: company[0].tradename,
             token
         });
 
     } catch (error) {
+        //cancela el commit y cirra la sesion
+        //await session.abortTransaction();
+        session.endSession();
+
         console.log(error);
         res.status(500).json({
             ok: false,
@@ -68,8 +109,6 @@ const sendToken = async(req, res) => {
         await user.save();
 
         const resetUrl = `${process.env.URL_CLIENT}/reset-password/${user.token}`
-        //const resetUrl = `http://${req.headers.host}/api/auth/reset-password/${user.token}`;
-        console.log(resetUrl);
 
         await sendEmail.send({
             user,
@@ -115,7 +154,6 @@ const resetPassword = async(req, res) => {
 
         //genera el token de autenticación
         const xtoken = await createJWT( user.id, user.name );
-        console.log(xtoken)
         res.status(200).json({
             ok: true,
             uid: user.id,

@@ -11,7 +11,6 @@ const CompanySchema = Schema({
     },
     vat: {
         type: String,
-        unique: true
     },
     address: {
         type: String,
@@ -34,15 +33,15 @@ const CompanySchema = Schema({
     email: {
         type: String
     },
-    master_user: {
+    admin_id: {
         type: String,
         required: true
     },
-    user: {
+    user_id: {
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true
     }
 });
 
-module.exports = model('Company', CompanySchema );
+module.exports = model('Company', CompanySchema ); 
